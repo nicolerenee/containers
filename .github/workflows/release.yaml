@@ -1,0 +1,152 @@
+---
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - ".github/workflows/build.yaml"
+      - ".github/workflows/release.yaml"
+  workflow_dispatch:
+    inputs:
+      app:
+        description: "Build a specific app (leave empty to detect changes / build all)"
+        required: false
+        type: string
+        default: ""
+      force_all:
+        description: "Force-rebuild every app (ignores change detection)"
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+      count: ${{ steps.plan.outputs.count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Compute build matrix
+        id: plan
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BEFORE_SHA: ${{ github.event.before }}
+          AFTER_SHA: ${{ github.sha }}
+          INPUT_APP: ${{ inputs.app }}
+          FORCE_ALL: ${{ inputs.force_all }}
+        run: |
+          set -euo pipefail
+
+          all_apps() {
+            find apps -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+          }
+
+          changed_apps() {
+            local before="$1" after="$2"
+            if ! git cat-file -e "${before}^{commit}" 2>/dev/null; then
+              all_apps
+              return
+            fi
+            git diff --name-only "${before}" "${after}" -- 'apps/*' \
+              | awk -F/ 'NF>=2 {print $2}' \
+              | sort -u
+          }
+
+          candidates=""
+          case "${EVENT_NAME}" in
+            workflow_dispatch)
+              if [[ "${FORCE_ALL}" == "true" ]]; then
+                candidates="$(all_apps)"
+              elif [[ -n "${INPUT_APP}" ]]; then
+                if [[ ! -d "apps/${INPUT_APP}" ]]; then
+                  echo "::error::No such app: apps/${INPUT_APP}"
+                  exit 1
+                fi
+                candidates="${INPUT_APP}"
+              else
+                candidates="$(all_apps)"
+              fi
+              ;;
+            push)
+              candidates="$(changed_apps "${BEFORE_SHA}" "${AFTER_SHA}")"
+              ;;
+            *)
+              candidates="$(all_apps)"
+              ;;
+          esac
+
+          entries="[]"
+          while IFS= read -r app; do
+            [[ -z "${app}" ]] && continue
+            meta="apps/${app}/metadata.json"
+            if [[ ! -f "${meta}" ]]; then
+              echo "::warning::Skipping ${app}: missing metadata.json"
+              continue
+            fi
+            version="$(jq -r '.version' "${meta}")"
+            if [[ -z "${version}" || "${version}" == "null" ]]; then
+              echo "::warning::Skipping ${app}: metadata.json has no .version"
+              continue
+            fi
+            platforms="$(jq -r '.platforms | join(",")' "${meta}")"
+            tag="${app}-${version}"
+            if git rev-parse --verify --quiet "refs/tags/${tag}" >/dev/null; then
+              echo "Skipping ${app}: tag ${tag} already exists (bump .version to rebuild)"
+              continue
+            fi
+            entries="$(jq -c --arg app "${app}" --arg version "${version}" --arg platforms "${platforms}" \
+              '. + [{app: $app, version: $version, platforms: $platforms}]' <<<"${entries}")"
+          done <<<"${candidates}"
+
+          count="$(jq 'length' <<<"${entries}")"
+          {
+            echo "matrix=${entries}"
+            echo "count=${count}"
+          } >>"$GITHUB_OUTPUT"
+
+          echo "### Build plan" >>"$GITHUB_STEP_SUMMARY"
+          if [[ "${count}" -eq 0 ]]; then
+            echo "_No apps to build._" >>"$GITHUB_STEP_SUMMARY"
+          else
+            echo "" >>"$GITHUB_STEP_SUMMARY"
+            echo "| App | Version | Platforms |" >>"$GITHUB_STEP_SUMMARY"
+            echo "| --- | --- | --- |" >>"$GITHUB_STEP_SUMMARY"
+            jq -r '.[] | "| \(.app) | \(.version) | \(.platforms) |"' <<<"${entries}" >>"$GITHUB_STEP_SUMMARY"
+          fi
+
+  build:
+    name: Build
+    needs: plan
+    if: needs.plan.outputs.count != '0'
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+      attestations: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    uses: ./.github/workflows/build.yaml
+    with:
+      app: ${{ matrix.app }}
+      version: ${{ matrix.version }}
+      platforms: ${{ matrix.platforms }}
+      push: true
+      create_release: true

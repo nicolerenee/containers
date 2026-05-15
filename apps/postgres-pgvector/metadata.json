@@ -1,0 +1,8 @@
+{
+  "app": "postgres-pgvector",
+  "version": "18.1-1",
+  "platforms": ["linux/amd64"],
+  "tests": {
+    "enabled": false
+  }
+}
