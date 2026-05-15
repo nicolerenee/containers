@@ -6,9 +6,9 @@ This repo is for images that support the homelab platform itself — base images
 
 ## Images
 
-| Image | Source | Notes |
-| --- | --- | --- |
-| [`postgres-pgvector`](apps/postgres-pgvector) | `ghcr.io/cloudnative-pg/postgresql:18-bookworm` + Debian `postgresql-18-pgvector` | CNPG-compatible PostgreSQL with `pgvector` |
+_None currently._ The pipeline is in place; add an image by dropping a new directory under `apps/`.
+
+> Previously hosted `postgres-pgvector`, removed once CNPG's standard postgres images began shipping `pgvector` (and `pgaudit`, failover slots, JIT) out of the box. See [release `postgres-pgvector-17-1`](https://github.com/nicolerenee/containers/releases/tag/postgres-pgvector-17-1) for the archived build.
 
 ## Layout
 
