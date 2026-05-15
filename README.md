@@ -8,7 +8,7 @@ This repo is for images that support the homelab platform itself — base images
 
 | Image | Source | Notes |
 | --- | --- | --- |
-| [`postgres-pgvector`](apps/postgres-pgvector) | `ghcr.io/cloudnative-pg/postgresql:18-bookworm` + Debian `postgresql-18-pgvector` | CNPG-compatible PostgreSQL 18 with `pgvector` |
+| [`postgres-pgvector`](apps/postgres-pgvector) | `ghcr.io/cloudnative-pg/postgresql:18-bookworm` + Debian `postgresql-18-pgvector` | CNPG-compatible PostgreSQL with `pgvector` |
 
 ## Layout
 
