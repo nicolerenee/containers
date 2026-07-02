@@ -1,0 +1,23 @@
+[project]
+name = "yahoo-finance-mcp-http"
+version = "0.1.0"
+description = "Yahoo Finance MCP server (vendored Alex2Yang97/yahoo-finance-mcp) served over streamable-HTTP for janet-mcp"
+requires-python = ">=3.11"
+dependencies = [
+    # >=1.9.0 is our floor (upstream's is 1.6.0, but streamable-HTTP support —
+    # FastMCP.run(transport="streamable-http") — needs a build past that).
+    # Capped <2 deliberately: deps resolve at every image build, and mcp 2.x
+    # drops the v1 FastMCP settings shape (.settings.host / .settings.port /
+    # .settings.transport_security) that http_entrypoint.py mutates. An
+    # unbounded floor would silently pull 2.x on a future rebuild and break
+    # startup (bad bind / host-validation still enabled). Lift the cap only
+    # after http_entrypoint.py is migrated to the v2 API.
+    "mcp[cli]>=1.9.0,<2",
+    "yfinance>=0.2.62",
+]
+
+[tool.uv]
+# No local package to build (server.py/http_entrypoint.py are run directly,
+# not installed as a module) — skip the project-install step, just resolve
+# and install the dependencies above.
+package = false
