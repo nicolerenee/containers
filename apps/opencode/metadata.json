@@ -1,0 +1,8 @@
+{
+  "app": "opencode",
+  "version": "1.17.13-1",
+  "platforms": ["linux/amd64", "linux/arm64"],
+  "tests": {
+    "enabled": false
+  }
+}

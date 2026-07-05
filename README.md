@@ -9,6 +9,7 @@ This repo is for images that support the homelab platform itself — base images
 | Image | Source | Notes |
 | --- | --- | --- |
 | [`yahoo-finance-mcp`](apps/yahoo-finance-mcp) | `Alex2Yang97/yahoo-finance-mcp` (vendored) + `yfinance`, served over streamable-HTTP | Yahoo Finance MCP server for the Janet platform — structured stock quotes, news, financials |
+| [`opencode`](apps/opencode) | `sst/opencode` (upstream release binary) | The [opencode](https://github.com/sst/opencode) CLI as a pinned, signed standalone image |
 
 > Previously hosted `postgres-pgvector`, removed once CNPG's standard postgres images began shipping `pgvector` (and `pgaudit`, failover slots, JIT) out of the box. See [release `postgres-pgvector-17-1`](https://github.com/nicolerenee/containers/releases/tag/postgres-pgvector-17-1) for the archived build.
 
